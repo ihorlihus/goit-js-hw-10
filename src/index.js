@@ -1,9 +1,13 @@
+import { Notify } from 'notiflix/build/notiflix-notify-aio';
 import './css/styles.css';
 import { fetchCountries } from './fetchCountries';
+import { makeCountryList } from './makeCountryList';
+import { makeCountryCard } from './makeCountryCard';
 
 const debounce = require('lodash.debounce');
 const form = document.querySelector('#search-box');
 const profileCountry = document.querySelector('.country-info');
+const countryList = document.querySelector('.country-list');
 console.log();
 
 const DEBOUNCE_DELAY = 300;
@@ -14,30 +18,36 @@ form.addEventListener(
     event.preventDefault();
     if (form.value === '') {
       event.preventDefault();
-      console.log('Must be value');
     } else {
-      fetchCountries(form.value.trim()).then(name => {
-        profileCountry.innerHTML = makeCountryCard(name);
-      });
+      fetchCountries(form.value.trim())
+        .then(name => {
+          countryList.innerHTML = '';
+          profileCountry.innerHTML = '';
+          if (name.length > 10) {
+            Notify.info(
+              'Too many matches found. Please enter a more specific name.'
+            );
+            return;
+          }
+          if (name.length > 1 && name.length < 11) {
+            name.map(name => {
+              const {
+                flags: { svg },
+                name: { official },
+              } = name;
+              countryList.insertAdjacentHTML(
+                'beforeend',
+                makeCountryList(svg, official)
+              );
+            });
+          }
+          if (name.length === 1) {
+            profileCountry.innerHTML = makeCountryCard(name);
+          }
+        })
+        .catch(error => {
+          Notify.failure('Oops, there is no country with that name');
+        });
     }
-  }, 900)
+  }, DEBOUNCE_DELAY)
 );
-
-function makeCountryCard(name) {
-  for (const {
-    flags: { svg: flag },
-    name: { official: countryName },
-    capital: [countryCap],
-    languages: { ...lang },
-    population: peoples,
-  } of name) {
-    const langs = Object.values(lang);
-    console.log(langs);
-    return `
-    <img src="${flag}" alt="${countryName}" width="32" />
-    <h2>${countryName}</h2>
-    <h3>Capital: <span>${countryCap}</span></h3>
-    <h3>Population: <span>${peoples}</span></h3>
-    <h3>languages: <span>${[langs]}</span></h3>`;
-  }
-}
